@@ -1,0 +1,6 @@
+D:\Study\Chat\Client\bin\Debug\Client.exe.config
+D:\Study\Chat\Client\bin\Debug\Client.exe
+D:\Study\Chat\Client\bin\Debug\Client.pdb
+D:\Study\Chat\Client\obj\Debug\Client.csproj.CoreCompileInputs.cache
+D:\Study\Chat\Client\obj\Debug\Client.exe
+D:\Study\Chat\Client\obj\Debug\Client.pdb
