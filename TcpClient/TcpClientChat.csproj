@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{1FDA24E0-B17C-4808-8360-F7052C1E4223}</ProjectGuid>
+    <ProjectGuid>{F39CFAC6-39DC-4DC3-ADC9-10A599B26351}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Chat</RootNamespace>
-    <AssemblyName>Chat</AssemblyName>
+    <RootNamespace>TcpClient</RootNamespace>
+    <AssemblyName>TcpClient</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -43,7 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
+    <Compile Include="TcpClientChat.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
