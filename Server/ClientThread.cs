@@ -43,7 +43,7 @@ namespace Server
                         builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
                     } while (clientSocket.Available > 0);
                     string clientMessage = builder.ToString();
-                    Console.WriteLine(DateTime.Now.ToShortTimeString() + "\n" + clientMessage);
+                    Console.WriteLine(DateTime.Now.ToShortTimeString() + " : " + clientName +" : " + clientMessage);
                     sendToOthers(this, clientMessage);
                     if (clientMessage == string.Empty)
                     {
@@ -55,6 +55,7 @@ namespace Server
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
+                sendToOthers(this, "disconnected");
                 serverReport(this);
             }
         }
@@ -76,7 +77,7 @@ namespace Server
             catch(Exception e)
             {
                 Console.WriteLine(e.Message);
-                //sendToOthers(this, "disconnected");
+                sendToOthers(this, "disconnected");
                 serverReport(this);
             }
         }
