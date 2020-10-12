@@ -47,13 +47,8 @@ namespace Server
                         builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
                     } while (clientSocket.Available > 0);
                     string clientMessage = builder.ToString();
-<<<<<<< HEAD
                     Console.WriteLine(DateTime.Now.ToShortTimeString() + "\n" + clientMessage);
                     SendToOthers(this, clientMessage);
-=======
-                    Console.WriteLine(DateTime.Now.ToShortTimeString() + " : " + clientName +" : " + clientMessage);
-                    sendToOthers(this, clientMessage);
->>>>>>> 53b4b26e2062d5598f7756f1732103a19f502249
                     if (clientMessage == string.Empty)
                     {
                         throw new Exception("empty message was received; disconnecting client");
@@ -64,12 +59,7 @@ namespace Server
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-<<<<<<< HEAD
                 ServerReport(this);
-=======
-                sendToOthers(this, "disconnected");
-                serverReport(this);
->>>>>>> 53b4b26e2062d5598f7756f1732103a19f502249
             }
         }
 
@@ -90,13 +80,7 @@ namespace Server
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-<<<<<<< HEAD
-                //sendToOthers(this, "disconnected");
                 ServerReport(this);
-=======
-                sendToOthers(this, "disconnected");
-                serverReport(this);
->>>>>>> 53b4b26e2062d5598f7756f1732103a19f502249
             }
         }
     }
