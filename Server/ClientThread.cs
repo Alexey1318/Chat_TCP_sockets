@@ -7,25 +7,29 @@ namespace Server
 {
     class ClientThread
     {
-        public string clientName { get; private set; }
-        private Socket clientSocket;
+        public string ClientName { get; private set; }
+        private readonly Socket clientSocket;
 
+        private delegate void GetHistory(ClientThread client);
         private delegate void ResendMessage(ClientThread client, string message);
         private delegate void ClientReporter(ClientThread client);
-        private event ResendMessage sendToOthers;
-        private event ClientReporter serverReport;
+        private event GetHistory ChatHistory;
+        private event ResendMessage SendToOthers;
+        private event ClientReporter ServerReport;
 
         public ClientThread(Socket socket, string name)
         {
-            clientName = name;
+            ClientName = name;
             clientSocket = socket;
-            sendToOthers += Server.SendMessageToOthers;
-            serverReport += Server.RemoveClient;
+            SendToOthers += Server.SendMessageToOthers;
+            ServerReport += Server.RemoveClient;
+            ChatHistory += Server.SendHistory;
         }
 
         public void StartClientListening()
         {
             var threadReader = Task.Run(() => ReadMessage());
+            ChatHistory(this);
         }
 
         private void ReadMessage()
@@ -44,7 +48,7 @@ namespace Server
                     } while (clientSocket.Available > 0);
                     string clientMessage = builder.ToString();
                     Console.WriteLine(DateTime.Now.ToShortTimeString() + "\n" + clientMessage);
-                    sendToOthers(this, clientMessage);
+                    SendToOthers(this, clientMessage);
                     if (clientMessage == string.Empty)
                     {
                         throw new Exception("empty message was received; disconnecting client");
@@ -55,7 +59,7 @@ namespace Server
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-                serverReport(this);
+                ServerReport(this);
             }
         }
 
@@ -73,11 +77,11 @@ namespace Server
                     throw new Exception("client couldn't get message");
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e.Message);
                 //sendToOthers(this, "disconnected");
-                serverReport(this);
+                ServerReport(this);
             }
         }
     }

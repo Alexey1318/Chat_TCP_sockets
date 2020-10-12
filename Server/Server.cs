@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
@@ -11,12 +12,14 @@ namespace Server
 {
     class Server
     {
-        private Socket serverSocket;
+        private readonly Socket serverSocket;
         private static List<ClientThread> clientsList;
+        private static List<string> history;
 
         public Server(string host, int port, int backlog)
         {
             clientsList = new List<ClientThread>();
+            history = new List<string>();
             IPEndPoint ipPoint = new IPEndPoint(IPAddress.Parse(host), port);
             serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             serverSocket.Bind(ipPoint);
@@ -50,15 +53,24 @@ namespace Server
             singleClient.Start();
         }
 
+        public static void SendHistory(ClientThread newClient)
+        {
+            foreach (string message in history)
+            {
+                clientsList.Find(client => client.Equals(newClient)).WriteMessage(message);
+            }
+        }
+
         public static void SendMessageToOthers(ClientThread sdClient, string message)
         {
+            history.Add($"{DateTime.Now.ToShortTimeString()} : {sdClient.ClientName} : {message}\n");
             foreach (ClientThread client in clientsList)
             {
                 if (client.Equals(sdClient) || message.Equals(string.Empty))
                 {
                     continue;
                 }
-                client.WriteMessage(sdClient.clientName + " : " + message);
+                client.WriteMessage(sdClient.ClientName + " : " + message);
             }
         }
 
@@ -67,14 +79,14 @@ namespace Server
             clientsList.Remove(rmClient);
             foreach(ClientThread client in clientsList)
             {
-                Console.WriteLine(client.clientName);
+                Console.WriteLine(client.ClientName);
             }
         }
     }
 
     class Launcher
     {
-        static void Main(string[] args)
+        static void Main()
         {
             Server server = new Server("127.0.0.1", 1234, 3);
             server.ConnectingClients();

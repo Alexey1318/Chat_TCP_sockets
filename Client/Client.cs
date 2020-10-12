@@ -10,10 +10,10 @@ namespace Client
 {
     class Client
     {
-        private Socket clientSocket;
-        private Thread sender;
-        private Thread receiver;
-        public string name { get; private set; }
+        private readonly Socket clientSocket;
+        private readonly Thread sender;
+        private readonly Thread receiver;
+        public string Name { get; private set; }
 
         public Client(string address, int port)
         {
@@ -32,17 +32,17 @@ namespace Client
         private void Registry()
         {
             Console.Write("Connected. Write your name: ");
-            name = Console.ReadLine();
-            if (!name.Equals(null))
+            Name = Console.ReadLine();
+            if (!Name.Equals(null))
             {
-                byte[] data = Encoding.Unicode.GetBytes(name);
+                byte[] data = Encoding.Unicode.GetBytes(Name);
                 clientSocket.Send(data);
             }
         }
 
         private void SendMessage()
         {
-            Console.WriteLine("Welcome to the chat, {0}!", name);
+            Console.WriteLine("Welcome to the chat, {0}!", Name);
             try
             {
                 string message = Console.ReadLine();
@@ -108,9 +108,9 @@ namespace Client
 
     public class ClientLauncher
     {
-        static void Main(string[] args)
+        static void Main()
         {
-            Client client = new Client("127.0.0.1", 1234);
+            _ = new Client("127.0.0.1", 1234);
         }
     }
 }
