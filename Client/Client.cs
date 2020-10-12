@@ -86,7 +86,7 @@ namespace Client
                         builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
                     } while (clientSocket.Available > 0);
                     string clientMessage = builder.ToString();
-                    Console.WriteLine(DateTime.Now.ToShortTimeString() + ": " + clientMessage);
+                    Console.WriteLine(DateTime.Now.ToShortTimeString() + " : " + clientMessage);
                     if (clientMessage == string.Empty)
                     {
                         throw new Exception("empty message");
