@@ -17,57 +17,91 @@ namespace Client
 
         public Client(string address, int port)
         {
-            IPEndPoint iPEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
-            clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            clientSocket.Connect(iPEndPoint);
-            Registry();
-
-            sender = new Thread(new ThreadStart(SendMessage));
-            receiver = new Thread(new ThreadStart(ReceiveMessage));
-
-            sender.Start();
-            receiver.Start();
+            try
+            {
+                // Create a new socket on client side
+                clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                // Connect to server
+                clientSocket.Connect(new IPEndPoint(IPAddress.Parse(address), port));
+                // If connect successfully, register a new chat participant
+                Registry();
+                // Start two threads - the first for sending messages, the second for receiving
+                sender = new Thread(new ThreadStart(SendMessage));
+                receiver = new Thread(new ThreadStart(ReceiveMessage));
+                sender.Start();
+                receiver.Start();
+            }
+            catch (Exception e)
+            {
+                // обработка общего исключения, потому что в данном контексте
+                // не имеет значение его тип - нужно закрыть соединение и остановить потоки
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throw an exception: {e.Message}");
+                CloseConnection(clientSocket);
+                InterruptThread(sender);
+                InterruptThread(receiver);
+            }
         }
 
         private void Registry()
         {
             Console.Write("Connected. Write your name: ");
             Name = Console.ReadLine();
-            if (!Name.Equals(null))
+            while (!(Name.Length > 0))
             {
-                byte[] data = Encoding.Unicode.GetBytes(Name);
+                Console.Write("Please, enter your name: ");
+                Name = Console.ReadLine();
+            }
+            byte[] data = Encoding.Unicode.GetBytes(Name);
+            try
+            {
                 clientSocket.Send(data);
+            }
+            catch (SocketException e)
+            {
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throw an exception: {e.Message}");
+                CloseConnection(clientSocket);
+            }
+        }
+
+        private void CloseConnection(Socket socket)
+        {
+            if (socket.Connected)
+            {
+                socket.Shutdown(SocketShutdown.Both);
+                socket.Close();
+            }
+        }
+
+        private void InterruptThread(Thread thread)
+        {
+            if (thread.IsAlive)
+            {
+                while (thread.ThreadState == ThreadState.Background
+                    || thread.ThreadState == ThreadState.Running)
+                    thread.Abort();
             }
         }
 
         private void SendMessage()
         {
-            Console.WriteLine("Welcome to the chat, {0}!", Name);
+            Console.WriteLine($"Welcome to the chat, {Name}!");
             try
             {
                 string message = Console.ReadLine();
-                while (true)
+                while (clientSocket.Connected && !message.Equals("exit"))
                 {
-                    if (message.Equals("exit"))
-                    { 
-                        throw new Exception("exit word was received; closing connection..."); 
-                    }
-                    else
-                    {
-                        byte[] data = Encoding.Unicode.GetBytes(message);
-                        clientSocket.Send(data);
-                        message = Console.ReadLine();
-                    }
+                    byte[] data = Encoding.Unicode.GetBytes(message);
+                    clientSocket.Send(data);
+                    message = Console.ReadLine();
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                if (clientSocket.Connected)
-                {
-                    clientSocket.Shutdown(SocketShutdown.Both);
-                    clientSocket.Close();
-                }
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throw an exception: {e.Message}");
+            }
+            finally
+            {
+                CloseConnection(clientSocket);
             }
         }
 
@@ -76,7 +110,7 @@ namespace Client
             try
             {
                 StringBuilder builder = new StringBuilder();
-                while (true)
+                while (clientSocket.Connected)
                 {
                     int bytes = 0;
                     byte[] data = new byte[256];
@@ -89,28 +123,27 @@ namespace Client
                     Console.WriteLine(DateTime.Now.ToShortTimeString() + " : " + clientMessage);
                     if (clientMessage == string.Empty)
                     {
-                        throw new Exception("empty message");
+                        break;
                     }
                     builder.Clear();
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                if (clientSocket.Connected)
-                {
-                    clientSocket.Shutdown(SocketShutdown.Both);
-                    clientSocket.Close();
-                }
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throw an exception: {e.Message}");
+            }
+            finally
+            {
+                CloseConnection(clientSocket);
             }
         }
     }
 
     public class ClientLauncher
     {
-        static void Main()
+        static void Main(string address = "127.0.0.1", int port = 1234)
         {
-            _ = new Client("127.0.0.1", 1234);
+            _ = new Client(address, port);
         }
     }
 }
