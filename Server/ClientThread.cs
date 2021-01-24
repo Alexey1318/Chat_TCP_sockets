@@ -7,7 +7,7 @@ namespace Server
 {
     class ClientThread
     {
-        public string ClientName { get; private set; }
+        public string ClientName { get; }
         private readonly Socket clientSocket;
 
         private delegate void GetHistory(ClientThread client);
@@ -16,6 +16,9 @@ namespace Server
         private event GetHistory ChatHistory;
         private event ResendMessage SendToOthers;
         private event ClientReporter ServerReport;
+
+        // private Action<ClientThread> ClientToServer;
+        // private Action<ClientThread, string> ClientToClients;
 
         public ClientThread(Socket socket, string name)
         {
@@ -39,6 +42,7 @@ namespace Server
                 StringBuilder builder = new StringBuilder();
                 while (true)
                 {
+                    // получить текстовое сообщение
                     int bytes = 0;
                     byte[] data = new byte[256];
                     do
@@ -46,14 +50,26 @@ namespace Server
                         bytes = clientSocket.Receive(data);
                         builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
                     } while (clientSocket.Available > 0);
+                    // привести его к строке
                     string clientMessage = builder.ToString();
-                    Console.WriteLine(DateTime.Now.ToShortTimeString() + "\n" + clientMessage);
-                    SendToOthers(this, clientMessage);
-                    if (clientMessage == string.Empty)
+                    builder.Clear();
+                    // если пришло пустое сообщение - бросить исключение
+                    if (clientMessage.Length == 0)
                     {
                         throw new Exception("empty message was received; disconnecting client");
                     }
-                    builder.Clear();
+                    // если пришло 'exit' - сообщить остальным слушателям об отключении
+                    // и отключить этого клиента; прервть цикл приема сообщений
+                    if (clientMessage.Equals("exit"))
+                    {
+                        SendToOthers(this, "was disconnected");
+                        ServerReport(this);
+                        break;
+                    }
+                    // выводит полученное сообщение на СЕРВЕРНУЮ часть
+                    Console.WriteLine($"[{DateTime.Now.ToShortTimeString()}]{ClientName} {clientMessage}");
+                    // переслать остальным клиентам полученное сообщение
+                    SendToOthers(this, clientMessage);
                 }
             }
             catch (Exception e)
@@ -80,6 +96,7 @@ namespace Server
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
+                SendToOthers(this, "was disconnected");
                 ServerReport(this);
             }
         }

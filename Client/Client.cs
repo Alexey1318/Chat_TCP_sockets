@@ -35,7 +35,7 @@ namespace Client
             {
                 // обработка общего исключения, потому что в данном контексте
                 // не имеет значение его тип - нужно закрыть соединение и остановить потоки
-                Console.WriteLine($"{e.Source}.{e.TargetSite} throw an exception: {e.Message}");
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
                 CloseConnection(clientSocket);
                 InterruptThread(sender);
                 InterruptThread(receiver);
@@ -58,7 +58,7 @@ namespace Client
             }
             catch (SocketException e)
             {
-                Console.WriteLine($"{e.Source}.{e.TargetSite} throw an exception: {e.Message}");
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
                 CloseConnection(clientSocket);
             }
         }
@@ -88,16 +88,18 @@ namespace Client
             try
             {
                 string message = Console.ReadLine();
-                while (clientSocket.Connected && !message.Equals("exit"))
+                while (clientSocket.Connected)
                 {
                     byte[] data = Encoding.Unicode.GetBytes(message);
                     clientSocket.Send(data);
+                    if (message.Equals("exit")) 
+                        break;
                     message = Console.ReadLine();
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{e.Source}.{e.TargetSite} throw an exception: {e.Message}");
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
             }
             finally
             {
@@ -120,7 +122,7 @@ namespace Client
                         builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
                     } while (clientSocket.Available > 0);
                     string clientMessage = builder.ToString();
-                    Console.WriteLine(DateTime.Now.ToShortTimeString() + " : " + clientMessage);
+                    Console.WriteLine(clientMessage);
                     if (clientMessage == string.Empty)
                     {
                         break;
@@ -130,7 +132,7 @@ namespace Client
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{e.Source}.{e.TargetSite} throw an exception: {e.Message}");
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
             }
             finally
             {
@@ -141,9 +143,9 @@ namespace Client
 
     public class ClientLauncher
     {
-        static void Main(string address = "127.0.0.1", int port = 1234)
+        static void Main()
         {
-            _ = new Client(address, port);
+            _ = new Client("127.0.0.1", 1234);
         }
     }
 }
