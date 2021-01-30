@@ -16,6 +16,7 @@ namespace Server
         private static List<ClientThread> clientsList;
         private static List<string> history;
 
+        // ! исключение
         public Server(string host, int port, int backlog)
         {
             // список клиентов
@@ -57,54 +58,63 @@ namespace Server
             // если приведение типов прошло успешно
             if (clientObj is Socket client)
             {
-                // получить имя клиента (= регистрация на время сессии)
-                StringBuilder builder = new StringBuilder();
-                int bytes = 0;
-                byte[] data = new byte[256];
-                do
+                try
                 {
-                    bytes = client.Receive(data);
-                    builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
-                } while (client.Available > 0);
-                // добавить клиента в список подключенний
-                clientsList.Add(new ClientThread(client, builder.ToString()));
-                // запустить поток, отвечающий за прием/отправку сообщений одного конкретного клиента
-                Thread singleClient = new Thread(new ThreadStart(clientsList[clientsList.Count - 1].StartClientListening));
-                singleClient.Start();
+                    // получить имя клиента (= регистрация на время сессии)
+                    StringBuilder builder = new StringBuilder();
+                    int bytes = 0;
+                    byte[] data = new byte[256];
+                    do
+                    {
+                        bytes = client.Receive(data);
+                        builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
+                    } while (client.Available > 0);
+                    // добавить клиента в список подключенний
+                    clientsList.Add(new ClientThread(client, builder.ToString()));
+                    // запустить поток, отвечающий за прием/отправку сообщений одного конкретного клиента
+                    Thread singleClient = new Thread(new ThreadStart(clientsList[clientsList.Count - 1].StartClientListening));
+                    singleClient.Start();
+                }
+                // исключение общее, т.к. в случае возникновения любого исключения в этом коде дальнейшая работа
+                // сервера с данным клиентом будет прекращена
+                catch (Exception e)
+                {
+                    Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
+                }
             }
             else
-            {
                 Console.WriteLine("Something went wrong. Client wasn't connected");
-            }
         }
 
         public static void SendHistory(ClientThread newClient)
         {
-            // отправить новому пользователю список активных пользователей
-            clientsList.Find(cl => cl.Equals(newClient)).WriteMessage("\nActive users: ");
-            foreach (ClientThread clientTh in clientsList)
+            // если в параметр "новый клиент" пришло нулевое значение - пробросить исключение
+            if (newClient.Equals(null)) 
             {
-                clientsList.Find(cl => cl.Equals(newClient)).WriteMessage($"{clientTh.ClientName}; ");
+                Console.WriteLine($"Something went wrong with {newClient.ClientName}! Can't send him message history.");
+                throw new ArgumentNullException("Got null-value in ClientThread argument");
             }
-            // отправить новому пользователю историю сообщения
-            clientsList.Find(cl => cl.Equals(newClient)).WriteMessage("\nMessage history:");
-            foreach (string message in history)
+            // иначе отправить ему список подключенных пользователей и историю сообщений
+            else
             {
-                clientsList.Find(client => client.Equals(newClient)).WriteMessage(message + "\n");
+                ClientThread client1 = clientsList.Find(cl => cl.Equals(newClient));
+                client1.WriteMessage("\nActive users: ");
+                foreach (ClientThread clientTh in clientsList)
+                    client1.WriteMessage($"{clientTh.ClientName}; ");
+                // отправить новому пользователю историю сообщениЙ
+                client1.WriteMessage("\nMessage history:\n");
+                foreach (string message in history)
+                    client1.WriteMessage(message + "\n");
             }
         }
 
         public static void SendMessageToOthers(ClientThread sdClient, string message)
         {
-            if (message.Length == 0)
-                return;
             history.Add($"[{DateTime.Now.ToShortTimeString()}]{sdClient.ClientName}: {message}");
             foreach (ClientThread client in clientsList)
             {
-                if (client.Equals(sdClient) || message.Length == 0)
-                {
+                if (client.Equals(sdClient)) 
                     continue;
-                }
                 client.WriteMessage(history[history.Count - 1]);
             }
         }
@@ -112,19 +122,17 @@ namespace Server
         public static void RemoveClient(ClientThread rmClient)
         {
             clientsList.Remove(rmClient);
-            Console.WriteLine("Active users:");
+            Console.WriteLine("\nActive users:");
             foreach(ClientThread client in clientsList)
-            {
-                Console.WriteLine(client.ClientName);
-            }
+                Console.Write($"{client.ClientName}; ");
         }
     }
 
     class Launcher
     {
-        static void Main()
+        static void Main(string[] args)
         {
-            Server server = new Server("127.0.0.1", 1234, 3);
+            Server server = new Server(args[0], 1234, 3);
             server.ConnectingClients();
         }
     }

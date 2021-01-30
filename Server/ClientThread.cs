@@ -31,8 +31,16 @@ namespace Server
 
         public void StartClientListening()
         {
-            var threadReader = Task.Run(() => ReadMessage());
-            ChatHistory(this);
+            try
+            {
+                var threadReader = Task.Run(() => ReadMessage());
+                ChatHistory(this);
+            }
+            catch(ArgumentNullException e)
+            {
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
+                throw;
+            }
         }
 
         private void ReadMessage()
@@ -53,11 +61,6 @@ namespace Server
                     // привести его к строке
                     string clientMessage = builder.ToString();
                     builder.Clear();
-                    // если пришло пустое сообщение - бросить исключение
-                    if (clientMessage.Length == 0)
-                    {
-                        throw new Exception("empty message was received; disconnecting client");
-                    }
                     // если пришло 'exit' - сообщить остальным слушателям об отключении
                     // и отключить этого клиента; прервть цикл приема сообщений
                     if (clientMessage.Equals("exit"))
@@ -75,6 +78,7 @@ namespace Server
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
+                SendToOthers(this, "was disconnected");
                 ServerReport(this);
             }
         }
@@ -85,17 +89,13 @@ namespace Server
             {
                 byte[] data = Encoding.Unicode.GetBytes(mes);
                 if (clientSocket.Connected)
-                {
                     clientSocket.Send(data);
-                }
                 else
-                {
                     throw new Exception("client couldn't get message");
-                }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
                 SendToOthers(this, "was disconnected");
                 ServerReport(this);
             }
