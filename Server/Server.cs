@@ -16,20 +16,31 @@ namespace Server
         private static List<ClientThread> clientsList;
         private static List<string> history;
 
-        // ! исключение
         public Server(string host, int port, int backlog)
         {
             // список клиентов
             clientsList = new List<ClientThread>();
             // история сообщений (для рассылки новым клиентам)
             history = new List<string>();
-            // запуск сервера на порту
-            IPEndPoint ipPoint = new IPEndPoint(IPAddress.Parse(host), port);
-            serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            serverSocket.Bind(ipPoint);
-            // backlog - максимальная длина очереди ожидаюжих подключений
-            serverSocket.Listen(backlog);
-            Console.WriteLine("Server ready");
+            try
+            {
+                // запуск сервера на порту
+                IPEndPoint ipPoint = new IPEndPoint(IPAddress.Parse(host), port);
+                serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                serverSocket.Bind(ipPoint);
+                // backlog - максимальная длина очереди ожидаюжих подключений
+                serverSocket.Listen(backlog);
+                Console.WriteLine("Server ready");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
+                if (serverSocket.Connected)
+                {
+                    serverSocket.Shutdown(SocketShutdown.Both);
+                    serverSocket.Close();
+                }
+            }
         }
 
         public void ConnectingClients()
@@ -132,7 +143,7 @@ namespace Server
     {
         static void Main(string[] args)
         {
-            Server server = new Server(args[0], 1234, 3);
+            Server server = new Server(args[0], int.Parse(args[1]), 3);
             server.ConnectingClients();
         }
     }

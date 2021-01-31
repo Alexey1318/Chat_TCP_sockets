@@ -10,23 +10,17 @@ namespace Server
         public string ClientName { get; }
         private readonly Socket clientSocket;
 
-        private delegate void GetHistory(ClientThread client);
-        private delegate void ResendMessage(ClientThread client, string message);
-        private delegate void ClientReporter(ClientThread client);
-        private event GetHistory ChatHistory;
-        private event ResendMessage SendToOthers;
-        private event ClientReporter ServerReport;
-
-        // private Action<ClientThread> ClientToServer;
-        // private Action<ClientThread, string> ClientToClients;
+        private Action<ClientThread> GetMessageHistory;
+        private Action<ClientThread> DisconnectClient;
+        private Action<ClientThread, string> ClientToClients;
 
         public ClientThread(Socket socket, string name)
         {
             ClientName = name;
             clientSocket = socket;
-            SendToOthers += Server.SendMessageToOthers;
-            ServerReport += Server.RemoveClient;
-            ChatHistory += Server.SendHistory;
+            ClientToClients += Server.SendMessageToOthers;
+            DisconnectClient += Server.RemoveClient;
+            GetMessageHistory += Server.SendHistory;
         }
 
         public void StartClientListening()
@@ -34,7 +28,8 @@ namespace Server
             try
             {
                 var threadReader = Task.Run(() => ReadMessage());
-                ChatHistory(this);
+                GetMessageHistory(this);
+                ClientToClients(this, "connected");
             }
             catch(ArgumentNullException e)
             {
@@ -65,21 +60,21 @@ namespace Server
                     // и отключить этого клиента; прервть цикл приема сообщений
                     if (clientMessage.Equals("exit"))
                     {
-                        SendToOthers(this, "was disconnected");
-                        ServerReport(this);
+                        ClientToClients(this, "disconnected");
+                        DisconnectClient(this);
                         break;
                     }
                     // выводит полученное сообщение на СЕРВЕРНУЮ часть
                     Console.WriteLine($"[{DateTime.Now.ToShortTimeString()}]{ClientName} {clientMessage}");
                     // переслать остальным клиентам полученное сообщение
-                    SendToOthers(this, clientMessage);
+                    ClientToClients(this, clientMessage);
                 }
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-                SendToOthers(this, "was disconnected");
-                ServerReport(this);
+                ClientToClients(this, "disconnected");
+                DisconnectClient(this);
             }
         }
 
@@ -96,8 +91,8 @@ namespace Server
             catch (Exception e)
             {
                 Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
-                SendToOthers(this, "was disconnected");
-                ServerReport(this);
+                ClientToClients(this, "disconnected");
+                DisconnectClient(this);
             }
         }
     }

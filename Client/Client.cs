@@ -143,9 +143,9 @@ namespace Client
 
     public class ClientLauncher
     {
-        static void Main()
+        static void Main(string[] args)
         {
-            _ = new Client("127.0.0.1", 1234);
+            _ = new Client(args[0], int.Parse(args[1]));
         }
     }
 }
