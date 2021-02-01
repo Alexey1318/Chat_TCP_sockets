@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Client
 {
@@ -19,13 +17,9 @@ namespace Client
         {
             try
             {
-                // Create a new socket on client side
                 clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                // Connect to server
                 clientSocket.Connect(new IPEndPoint(IPAddress.Parse(address), port));
-                // If connect successfully, register a new chat participant
                 Registry();
-                // Start two threads - the first for sending messages, the second for receiving
                 sender = new Thread(new ThreadStart(SendMessage));
                 receiver = new Thread(new ThreadStart(ReceiveMessage));
                 sender.Start();
@@ -33,8 +27,6 @@ namespace Client
             }
             catch (Exception e)
             {
-                // обработка общего исключения, потому что в данном контексте
-                // не имеет значение его тип - нужно закрыть соединение и остановить потоки
                 Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
                 CloseConnection(clientSocket);
                 InterruptThread(sender);
@@ -78,7 +70,9 @@ namespace Client
             {
                 while (thread.ThreadState == ThreadState.Background
                     || thread.ThreadState == ThreadState.Running)
+                {
                     thread.Abort();
+                }
             }
         }
 
@@ -92,8 +86,10 @@ namespace Client
                 {
                     byte[] data = Encoding.Unicode.GetBytes(message);
                     clientSocket.Send(data);
-                    if (message.Equals("exit")) 
+                    if (message.Equals("exit"))
+                    {
                         break;
+                    }
                     message = Console.ReadLine();
                 }
             }
