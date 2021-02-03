@@ -17,6 +17,7 @@ namespace Client
         {
             try
             {
+                Name = string.Empty;
                 clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 clientSocket.Connect(new IPEndPoint(IPAddress.Parse(address), port));
                 Registry();
@@ -36,28 +37,33 @@ namespace Client
 
         private void Registry()
         {
-            Console.Write("Connected. Write your name: ");
-            Name = Console.ReadLine();
-            while (!(Name.Length > 0))
+            bool status = false;
+            while (!status || Name.Length <= 0)
             {
-                Console.Write("Please, enter your name: ");
+                Console.Write("[The name must be longer than 0 characters]\n> ");
                 Name = Console.ReadLine();
-            }
-            byte[] data = Encoding.Unicode.GetBytes(Name);
-            try
-            {
-                clientSocket.Send(data);
-            }
-            catch (SocketException e)
-            {
-                Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
-                CloseConnection(clientSocket);
+                try
+                {
+                    clientSocket.Send(Encoding.Unicode.GetBytes(Name));
+                    byte[] answer = new byte[1];
+                    do
+                    {
+                        clientSocket.Receive(answer);
+                        status = BitConverter.ToBoolean(answer, 0);
+                    } while (clientSocket.Available > 0);
+                }
+                catch (SocketException e)
+                {
+                    Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
+                    CloseConnection(clientSocket);
+                }
+                Console.Write(status ? $"Welcome, {Name}!" : $"User with name {Name} ale already connected.");
             }
         }
 
         private void CloseConnection(Socket socket)
         {
-            if (socket.Connected)
+            if (socket != null && socket.Connected)
             {
                 socket.Shutdown(SocketShutdown.Both);
                 socket.Close();
@@ -66,7 +72,7 @@ namespace Client
 
         private void InterruptThread(Thread thread)
         {
-            if (thread.IsAlive)
+            if (thread != null && thread.IsAlive)
             {
                 while (thread.ThreadState == ThreadState.Background
                     || thread.ThreadState == ThreadState.Running)
@@ -78,7 +84,6 @@ namespace Client
 
         private void SendMessage()
         {
-            Console.WriteLine($"Welcome to the chat, {Name}!");
             try
             {
                 string message = Console.ReadLine();

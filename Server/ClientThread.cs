@@ -7,29 +7,61 @@ namespace Server
 {
     class ClientThread
     {
-        public readonly string ClientName;
+        public string ClientName { get; private set; }
         private readonly Socket clientSocket;
 
         private readonly Action<ClientThread> GetMessageHistory;
+        private readonly Action<ClientThread> ConnectClient;
         private readonly Action<ClientThread> DisconnectClient;
         private readonly Action<ClientThread, string> SendToOthers;
+        private readonly Func<string, bool> Check;
 
-        public ClientThread(Socket socket, string name)
+        public ClientThread(Socket socket)
         {
-            ClientName = name;
             clientSocket = socket;
             SendToOthers += Server.SendMessageToOthers;
+            ConnectClient += Server.AddClient;
             DisconnectClient += Server.RemoveClient;
             GetMessageHistory += Server.SendHistory;
+            Check += Server.CheckClient;
         }
 
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         public void StartClientListening()
         {
             try
             {
-                var readerTh = Task.Run(() => ReadMessage());
-                GetMessageHistory(this);
-                SendToOthers(this, "connected");
+                int bytes = 0;
+                byte[] data = new byte[256];
+                while (true)
+                {
+                    StringBuilder builder = new StringBuilder();
+                    do
+                    {
+                        bytes = clientSocket.Receive(data);
+                        builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
+                    } while (clientSocket.Available > 0);
+                    if (Check(builder.ToString()))
+                    {
+                        byte[] a = BitConverter.GetBytes(false);
+                        foreach(byte b in a)
+                        {
+                            Console.WriteLine(b);
+                        }
+                        this.WriteMessage(a);
+                    }
+                    else 
+                    {
+                        this.WriteMessage(BitConverter.GetBytes(true));
+                        ClientName = builder.ToString(); 
+                        ConnectClient(this);
+                        var readerTh = Task.Run(() => ReadMessage());
+                        GetMessageHistory(this);
+                        SendToOthers(this, "connected");
+                        break;
+                    }
+                }
+                
             }
             catch(ArgumentNullException e)
             {
@@ -60,7 +92,6 @@ namespace Server
                         DisconnectClient(this);
                         break;
                     }
-                    Console.WriteLine($"[{DateTime.Now.ToShortTimeString()}]{ClientName} {clientMessage}");
                     SendToOthers(this, clientMessage);
                 }
             }
@@ -72,11 +103,10 @@ namespace Server
             }
         }
 
-        public void WriteMessage(string mes)
+        public void WriteMessage(byte[] data)
         {
             try
             {
-                byte[] data = Encoding.Unicode.GetBytes(mes);
                 if (clientSocket.Connected)
                 {
                     clientSocket.Send(data);

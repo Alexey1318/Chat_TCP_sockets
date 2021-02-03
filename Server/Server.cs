@@ -59,17 +59,27 @@ namespace Server
             {
                 try
                 {
-                    StringBuilder builder = new StringBuilder();
-                    int bytes = 0;
-                    byte[] data = new byte[256];
-                    do
-                    {
-                        bytes = client.Receive(data);
-                        builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
-                    } while (client.Available > 0);
-                    clientsList.Add(new ClientThread(client, builder.ToString()));
-                    Thread singleClient = new Thread(new ThreadStart(clientsList[clientsList.Count - 1].StartClientListening));
-                    singleClient.Start();
+                    ClientThread clientThread = new ClientThread(client);
+                    Thread newClient = new Thread(new ThreadStart(clientThread.StartClientListening));
+                    newClient.Start();
+
+                    //StringBuilder builder = new StringBuilder();
+                    //int bytes = 0;
+                    //byte[] data = new byte[256];
+                    //do
+                    //{
+                    //    bytes = client.Receive(data);
+                    //    builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
+                    //} while (client.Available > 0);
+                    //string clientName = builder.ToString();
+                    //while (clientsList.Contains(clientsList.Find(cl => cl.ClientName == clientName)))
+                    //{
+                    //    byte[] data = Encoding.Unicode.GetBytes($"Client with name {clientName} already connected. Enter ");
+                    //    client.Send
+                    //}
+                    //clientsList.Add(new ClientThread(client, clientName));
+                    //Thread singleClient = new Thread(new ThreadStart(clientsList[clientsList.Count - 1].StartClientListening));
+                    //singleClient.Start();
                 }
                 catch (Exception e)
                 {
@@ -82,6 +92,16 @@ namespace Server
             }
         }
 
+        public static bool CheckClient(string name)
+        {
+            return clientsList.Contains(clientsList.Find(cl => cl.ClientName == name));
+        }
+
+        public static void AddClient(ClientThread newClient)
+        {
+            clientsList.Add(newClient);
+        }
+
         public static void SendHistory(ClientThread newClient)
         {
             if (newClient.Equals(null)) 
@@ -92,15 +112,15 @@ namespace Server
             else
             {
                 ClientThread client = clientsList.Find(cl => cl.Equals(newClient));
-                client.WriteMessage("\nActive users: ");
+                client.WriteMessage(Encoding.Unicode.GetBytes("\nActive users: "));
                 foreach (ClientThread clientTh in clientsList)
                 {
-                    client.WriteMessage($"{clientTh.ClientName}; ");
+                    client.WriteMessage(Encoding.Unicode.GetBytes($"{clientTh.ClientName}; "));
                 }
-                client.WriteMessage("\nMessage history:\n");
+                client.WriteMessage(Encoding.Unicode.GetBytes("\nMessage history:\n"));
                 foreach (string message in history)
                 {
-                    client.WriteMessage($"{message}\n");
+                    client.WriteMessage(Encoding.Unicode.GetBytes($"{message}\n"));
                 }
             }
         }
@@ -108,13 +128,14 @@ namespace Server
         public static void SendMessageToOthers(ClientThread sdClient, string message)
         {
             history.Add($"[{DateTime.Now.ToShortTimeString()}]{sdClient.ClientName}: {message}");
+            Console.WriteLine(history[history.Count - 1]);
             foreach (ClientThread client in clientsList)
             {
                 if (client.Equals(sdClient))
                 { 
                     continue;
                 }
-                client.WriteMessage(history[history.Count - 1]);
+                client.WriteMessage(Encoding.Unicode.GetBytes(history[history.Count - 1]));
             }
         }
 
