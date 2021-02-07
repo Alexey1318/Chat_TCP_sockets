@@ -62,24 +62,6 @@ namespace Server
                     ClientThread clientThread = new ClientThread(client);
                     Thread newClient = new Thread(new ThreadStart(clientThread.StartClientListening));
                     newClient.Start();
-
-                    //StringBuilder builder = new StringBuilder();
-                    //int bytes = 0;
-                    //byte[] data = new byte[256];
-                    //do
-                    //{
-                    //    bytes = client.Receive(data);
-                    //    builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
-                    //} while (client.Available > 0);
-                    //string clientName = builder.ToString();
-                    //while (clientsList.Contains(clientsList.Find(cl => cl.ClientName == clientName)))
-                    //{
-                    //    byte[] data = Encoding.Unicode.GetBytes($"Client with name {clientName} already connected. Enter ");
-                    //    client.Send
-                    //}
-                    //clientsList.Add(new ClientThread(client, clientName));
-                    //Thread singleClient = new Thread(new ThreadStart(clientsList[clientsList.Count - 1].StartClientListening));
-                    //singleClient.Start();
                 }
                 catch (Exception e)
                 {
@@ -109,7 +91,7 @@ namespace Server
                 Console.WriteLine($"Something went wrong with {newClient.ClientName}! Can't send him message history.");
                 throw new ArgumentNullException("Got null-value in ClientThread argument");
             }
-            else
+            else if(newClient.ClientSocket.Connected)
             {
                 ClientThread client = clientsList.Find(cl => cl.Equals(newClient));
                 client.WriteMessage(Encoding.Unicode.GetBytes("\nActive users: "));
@@ -127,25 +109,31 @@ namespace Server
 
         public static void SendMessageToOthers(ClientThread sdClient, string message)
         {
-            history.Add($"[{DateTime.Now.ToShortTimeString()}]{sdClient.ClientName}: {message}");
-            Console.WriteLine(history[history.Count - 1]);
-            foreach (ClientThread client in clientsList)
+            if (sdClient.ClientSocket.Connected)
             {
-                if (client.Equals(sdClient))
-                { 
-                    continue;
+                history.Add($"{DateTime.Now.ToShortTimeString(), 8} {sdClient.ClientRoom, 10} {sdClient.ClientName, 10}: {message}");
+                Console.WriteLine(history[history.Count - 1]);
+                foreach (ClientThread client in clientsList)
+                {
+                    if (client.Equals(sdClient) || !client.ClientRoom.Equals(sdClient.ClientRoom))
+                    {
+                        continue;
+                    }
+                    client.WriteMessage(Encoding.Unicode.GetBytes(history[history.Count - 1]));
                 }
-                client.WriteMessage(Encoding.Unicode.GetBytes(history[history.Count - 1]));
             }
         }
 
         public static void RemoveClient(ClientThread rmClient)
         {
-            clientsList.Remove(rmClient);
-            Console.WriteLine("\nActive users:");
-            foreach (ClientThread client in clientsList)
+            // ! список активных пользователей выводить по команде админа
+            if (clientsList.Remove(rmClient))
             {
-                Console.Write($"{client.ClientName}; ");
+                Console.WriteLine("\nActive users:");
+                foreach (ClientThread client in clientsList)
+                {
+                    Console.Write($"{client.ClientName}; ");
+                }
             }
         }
     }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Server
@@ -8,7 +9,8 @@ namespace Server
     class ClientThread
     {
         public string ClientName { get; private set; }
-        private readonly Socket clientSocket;
+        public string ClientRoom { get; private set; }
+        public Socket ClientSocket { get; private set; }
 
         private readonly Action<ClientThread> GetMessageHistory;
         private readonly Action<ClientThread> ConnectClient;
@@ -18,7 +20,8 @@ namespace Server
 
         public ClientThread(Socket socket)
         {
-            clientSocket = socket;
+            ClientSocket = socket;
+            ClientRoom = "main_room";
             SendToOthers += Server.SendMessageToOthers;
             ConnectClient += Server.AddClient;
             DisconnectClient += Server.RemoveClient;
@@ -26,7 +29,6 @@ namespace Server
             Check += Server.CheckClient;
         }
 
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         public void StartClientListening()
         {
             try
@@ -38,21 +40,16 @@ namespace Server
                     StringBuilder builder = new StringBuilder();
                     do
                     {
-                        bytes = clientSocket.Receive(data);
+                        bytes = ClientSocket.Receive(data);
                         builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
-                    } while (clientSocket.Available > 0);
+                    } while (ClientSocket.Available > 0);
                     if (Check(builder.ToString()))
                     {
-                        byte[] a = BitConverter.GetBytes(false);
-                        foreach(byte b in a)
-                        {
-                            Console.WriteLine(b);
-                        }
-                        this.WriteMessage(a);
+                        WriteMessage(BitConverter.GetBytes(false));
                     }
                     else 
                     {
-                        this.WriteMessage(BitConverter.GetBytes(true));
+                        WriteMessage(BitConverter.GetBytes(true));
                         ClientName = builder.ToString(); 
                         ConnectClient(this);
                         var readerTh = Task.Run(() => ReadMessage());
@@ -70,34 +67,43 @@ namespace Server
             }
         }
 
+        private void StopClientListening()
+        {
+            if (ClientSocket != null && ClientSocket.Connected)
+            {
+                ClientSocket.Shutdown(SocketShutdown.Both);
+                ClientSocket.Close();
+            }
+        }
+
         private void ReadMessage()
         {
             try
             {
                 StringBuilder builder = new StringBuilder();
-                while (true)
+                while (ClientSocket.Connected)
                 {
                     int bytes = 0;
                     byte[] data = new byte[256];
                     do
                     {
-                        bytes = clientSocket.Receive(data);
+                        bytes = ClientSocket.Receive(data);
                         builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
-                    } while (clientSocket.Available > 0);
+                    } while (ClientSocket.Available > 0);
                     string clientMessage = builder.ToString();
                     builder.Clear();
-                    if (clientMessage.Equals("exit"))
+                    if (!CheckCommand(clientMessage))
                     {
-                        SendToOthers(this, "disconnected");
-                        DisconnectClient(this);
-                        break;
+                        SendToOthers(this, clientMessage);
                     }
-                    SendToOthers(this, clientMessage);
                 }
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
+            }
+            finally
+            {
                 SendToOthers(this, "disconnected");
                 DisconnectClient(this);
             }
@@ -107,13 +113,13 @@ namespace Server
         {
             try
             {
-                if (clientSocket.Connected)
+                if (ClientSocket.Connected)
                 {
-                    clientSocket.Send(data);
+                    ClientSocket.Send(data);
                 }
                 else
                 {
-                    throw new Exception("client couldn't get message");
+                    throw new Exception("client can't receive the message");
                 }
             }
             catch (Exception e)
@@ -122,6 +128,30 @@ namespace Server
                 SendToOthers(this, "disconnected");
                 DisconnectClient(this);
             }
+        }
+
+        private bool CheckCommand(string text)
+        {
+            Match matchCom = Regex.Match(text, @"^(c_){1}\w+(($)||(\s+\w+$))");
+            if (matchCom.Value.Length > 0)
+            {
+                Match matchArg = Regex.Match(text, @"\s+\w+$");
+                switch (matchCom.Value)
+                {
+                    case "c_exit":
+                        SendToOthers(this, "disconnected");
+                        StopClientListening();
+                        DisconnectClient(this);
+                        return true;
+                    case "c_room":
+                        string tempRoomName = Regex.Replace(matchArg.Value, @"\s", String.Empty);
+                        SendToOthers(this, $"{ClientName} change room to {tempRoomName}");
+                        ClientRoom = tempRoomName;
+                        SendToOthers(this, $"connected to {ClientRoom}");
+                        return true;
+                }
+            }
+            return false;
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace Client
@@ -12,12 +13,14 @@ namespace Client
         private readonly Thread sender;
         private readonly Thread receiver;
         public string Name { get; private set; }
+        public string CurrentRoom { get; private set; }
 
         public Client(string address, int port)
         {
             try
             {
                 Name = string.Empty;
+                CurrentRoom = "main_room";
                 clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 clientSocket.Connect(new IPEndPoint(IPAddress.Parse(address), port));
                 Registry();
@@ -30,8 +33,8 @@ namespace Client
             {
                 Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
                 CloseConnection(clientSocket);
-                InterruptThread(sender);
                 InterruptThread(receiver);
+                InterruptThread(sender);
             }
         }
 
@@ -40,7 +43,7 @@ namespace Client
             bool status = false;
             while (!status || Name.Length <= 0)
             {
-                Console.Write("[The name must be longer than 0 characters]\n> ");
+                Console.Write("\n[The name must be longer than 0 characters]\n> ");
                 Name = Console.ReadLine();
                 try
                 {
@@ -74,10 +77,13 @@ namespace Client
         {
             if (thread != null && thread.IsAlive)
             {
-                while (thread.ThreadState == ThreadState.Background
-                    || thread.ThreadState == ThreadState.Running)
+                try
                 {
-                    thread.Abort();
+                    thread.Join(1000);
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
                 }
             }
         }
@@ -86,20 +92,18 @@ namespace Client
         {
             try
             {
-                string message = Console.ReadLine();
+                string message;
                 while (clientSocket.Connected)
                 {
+                    message = Console.ReadLine();
                     byte[] data = Encoding.Unicode.GetBytes(message);
                     clientSocket.Send(data);
-                    if (message.Equals("exit"))
-                    {
-                        break;
-                    }
-                    message = Console.ReadLine();
+                    CheckCommand(message); 
                 }
             }
             catch (Exception e)
             {
+                Console.WriteLine("Client.SendMessage");
                 Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
             }
             finally
@@ -133,11 +137,32 @@ namespace Client
             }
             catch (Exception e)
             {
+                Console.WriteLine("Client.ReceiveMessage");
                 Console.WriteLine($"{e.Source}.{e.TargetSite} throws an exception: {e.Message}");
             }
             finally
             {
                 CloseConnection(clientSocket);
+            }
+        }
+
+        private void CheckCommand(string text)
+        {
+            Match matchCom = Regex.Match(text, @"^(c_){1}\w+(($)||(\s+\w+$))");
+            if (matchCom.Value.Length > 0) {
+                Match matchArg = Regex.Match(text, @"\s+\w+$");
+                switch (matchCom.Value)
+                {
+                    case "c_exit":
+                        InterruptThread(receiver);
+                        InterruptThread(sender);
+                        CloseConnection(this.clientSocket);
+                        break;
+                    case "c_room":
+                        CurrentRoom = Regex.Replace(matchArg.Value, @"\s", String.Empty);
+                        Console.WriteLine($"Welcome to {CurrentRoom}!");
+                        break;
+                }
             }
         }
     }
