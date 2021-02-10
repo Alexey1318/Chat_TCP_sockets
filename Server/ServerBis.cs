@@ -1,22 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Server
 {
-    class Server
+    class StartServer
+    {
+        public static void Main(string[] args)
+        {
+            ServerBis server = new ServerBis(args[0], int.Parse(args[1]), 3);
+            server.ConnectingClients();
+        }
+    }
+    class ServerBis
     {
         private readonly Socket serverSocket;
-        private static List<ClientThread> clientsList;
-        private static List<string> history;
+        private static List<ServerRoom> roomList;
 
-        public Server(string host, int port, int backlog)
+        public ServerBis(string host, int port, int backlog)
         {
-            clientsList = new List<ClientThread>();
-            history = new List<string>();
+            roomList = new List<ServerRoom>() { new ServerRoom("main_room") };
             try
             {
                 IPEndPoint ipPoint = new IPEndPoint(IPAddress.Parse(host), port);
@@ -76,31 +84,66 @@ namespace Server
 
         public static bool CheckClient(string name)
         {
-            return clientsList.Contains(clientsList.Find(cl => cl.ClientName == name));
+            foreach(ServerRoom room in roomList)
+            {
+                if(room.Participants.Contains(room.Participants.Find(user => user.ClientName == name)))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public static void AddClient(ClientThread newClient)
         {
-            clientsList.Add(newClient);
-        }
-
-        public static void SendHistory(ClientThread newClient)
-        {
-            if (newClient.Equals(null)) 
+            if (newClient.Equals(null))
             {
                 Console.WriteLine($"Something went wrong with {newClient.ClientName}! Can't send him message history.");
                 throw new ArgumentNullException("Got null-value in ClientThread argument");
             }
-            else if(newClient.ClientSocket.Connected)
+            else if (newClient.ClientSocket.Connected)
             {
-                ClientThread client = clientsList.Find(cl => cl.Equals(newClient));
+                ServerRoom tmpRoom = roomList.Find(room => room.RoomName == "main_room");
+                tmpRoom?.Participants.Add(newClient);
+            }
+        }
+
+        public static void CreateRoom(ClientThread client, string roomName)
+        {
+            if (!roomList.Contains(roomList.Find(r => r.RoomName == roomName)))
+            {
+                roomList.Add(new ServerRoom(roomName));
+            }
+            roomList.Find(r => r.RoomName == roomName).Participants.Add(client);
+            foreach (ServerRoom room in roomList)
+            {
+                if (room.RoomName == roomName)
+                {
+                    continue;
+                }
+                room.Participants.Remove(client);
+            }
+            SendHistory(client);
+        }
+
+        public static void SendHistory(ClientThread newClient)
+        {
+            if (newClient.Equals(null))
+            {
+                Console.WriteLine($"Something went wrong with {newClient.ClientName}! Can't send him message history.");
+                throw new ArgumentNullException("Got null-value in ClientThread argument");
+            }
+            else if (newClient.ClientSocket.Connected)
+            {
+                ServerRoom room = roomList.Find(r => r.RoomName == newClient.ClientRoom);
+                ClientThread client = room.Participants.Find(cl => cl.Equals(newClient));
                 client.WriteMessage(Encoding.Unicode.GetBytes("\nActive users: "));
-                foreach (ClientThread clientTh in clientsList)
+                foreach (ClientThread clientTh in room.Participants)
                 {
                     client.WriteMessage(Encoding.Unicode.GetBytes($"{clientTh.ClientName}; "));
                 }
                 client.WriteMessage(Encoding.Unicode.GetBytes("\nMessage history:\n"));
-                foreach (string message in history)
+                foreach (string message in room.RoomMessageHistroy)
                 {
                     client.WriteMessage(Encoding.Unicode.GetBytes($"{message}\n"));
                 }
@@ -111,15 +154,16 @@ namespace Server
         {
             if (sdClient.ClientSocket.Connected)
             {
-                history.Add($"{DateTime.Now.ToShortTimeString(), 8} {sdClient.ClientRoom, 10} {sdClient.ClientName, 10}: {message}");
-                Console.WriteLine(history[history.Count - 1]);
-                foreach (ClientThread client in clientsList)
+                ServerRoom room = roomList.Find(r => r.RoomName == sdClient.ClientRoom);
+                room.RoomMessageHistroy.Add($"{DateTime.Now.ToShortTimeString(), 8} {sdClient.ClientRoom, 10} {sdClient.ClientName, 10}: {message}");
+                Console.WriteLine(room.RoomMessageHistroy[room.RoomMessageHistroy.Count - 1]);
+                foreach (ClientThread client in room.Participants)
                 {
-                    if (client.Equals(sdClient) || !client.ClientRoom.Equals(sdClient.ClientRoom))
+                    if (client.Equals(sdClient))
                     {
                         continue;
                     }
-                    client.WriteMessage(Encoding.Unicode.GetBytes(history[history.Count - 1]));
+                    client.WriteMessage(Encoding.Unicode.GetBytes(room.RoomMessageHistroy[room.RoomMessageHistroy.Count - 1]));
                 }
             }
         }
@@ -127,23 +171,15 @@ namespace Server
         public static void RemoveClient(ClientThread rmClient)
         {
             // ! список активных пользователей выводить по команде админа
-            if (clientsList.Remove(rmClient))
+            ServerRoom room = roomList.Find(r => r.RoomName == rmClient.ClientRoom);
+            if (room.Participants.Remove(rmClient))
             {
                 Console.WriteLine("\nActive users:");
-                foreach (ClientThread client in clientsList)
+                foreach (ClientThread client in room.Participants)
                 {
                     Console.Write($"{client.ClientName}; ");
                 }
             }
         }
     }
-
-    //class Launcher
-    //{
-    //    static void Main(string[] args)
-    //    {
-    //        Server server = new Server(args[0], int.Parse(args[1]), 3);
-    //        server.ConnectingClients();
-    //    }
-    //}
 }

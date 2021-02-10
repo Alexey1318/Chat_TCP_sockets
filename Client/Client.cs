@@ -13,14 +13,14 @@ namespace Client
         private readonly Thread sender;
         private readonly Thread receiver;
         public string Name { get; private set; }
-        public string CurrentRoom { get; private set; }
+        // public string CurrentRoom { get; private set; }
 
         public Client(string address, int port)
         {
             try
             {
                 Name = string.Empty;
-                CurrentRoom = "main_room";
+                // CurrentRoom = "main_room";
                 clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 clientSocket.Connect(new IPEndPoint(IPAddress.Parse(address), port));
                 Registry();
@@ -150,7 +150,7 @@ namespace Client
         {
             Match matchCom = Regex.Match(text, @"^(c_){1}\w+(($)||(\s+\w+$))");
             if (matchCom.Value.Length > 0) {
-                Match matchArg = Regex.Match(text, @"\s+\w+$");
+                // Match matchArg = Regex.Match(text, @"\s+\w+");
                 switch (matchCom.Value)
                 {
                     case "c_exit":
@@ -158,10 +158,10 @@ namespace Client
                         InterruptThread(sender);
                         CloseConnection(this.clientSocket);
                         break;
-                    case "c_room":
-                        CurrentRoom = Regex.Replace(matchArg.Value, @"\s", String.Empty);
-                        Console.WriteLine($"Welcome to {CurrentRoom}!");
-                        break;
+                    //case "c_room":
+                    //    CurrentRoom = Regex.Replace(matchArg.Value, @"\s", String.Empty);
+                    //    Console.WriteLine($"Welcome to {CurrentRoom}!");
+                    //    break;
                 }
             }
         }

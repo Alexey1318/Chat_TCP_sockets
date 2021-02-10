@@ -16,17 +16,19 @@ namespace Server
         private readonly Action<ClientThread> ConnectClient;
         private readonly Action<ClientThread> DisconnectClient;
         private readonly Action<ClientThread, string> SendToOthers;
+        private readonly Action<ClientThread, string> CreateRoom;
         private readonly Func<string, bool> Check;
 
         public ClientThread(Socket socket)
         {
             ClientSocket = socket;
             ClientRoom = "main_room";
-            SendToOthers += Server.SendMessageToOthers;
-            ConnectClient += Server.AddClient;
-            DisconnectClient += Server.RemoveClient;
-            GetMessageHistory += Server.SendHistory;
-            Check += Server.CheckClient;
+            SendToOthers += ServerBis.SendMessageToOthers;
+            ConnectClient += ServerBis.AddClient;
+            DisconnectClient += ServerBis.RemoveClient;
+            GetMessageHistory += ServerBis.SendHistory;
+            CreateRoom += ServerBis.CreateRoom;
+            Check += ServerBis.CheckClient;
         }
 
         public void StartClientListening()
@@ -135,7 +137,7 @@ namespace Server
             Match matchCom = Regex.Match(text, @"^(c_){1}\w+(($)||(\s+\w+$))");
             if (matchCom.Value.Length > 0)
             {
-                Match matchArg = Regex.Match(text, @"\s+\w+$");
+                Match matchArg = Regex.Match(text, @"\s+\w+");
                 switch (matchCom.Value)
                 {
                     case "c_exit":
@@ -144,10 +146,9 @@ namespace Server
                         DisconnectClient(this);
                         return true;
                     case "c_room":
-                        string tempRoomName = Regex.Replace(matchArg.Value, @"\s", String.Empty);
-                        SendToOthers(this, $"{ClientName} change room to {tempRoomName}");
-                        ClientRoom = tempRoomName;
-                        SendToOthers(this, $"connected to {ClientRoom}");
+                        SendToOthers(this, $"leaved {ClientRoom}");
+                        ClientRoom = Regex.Replace(matchArg.Value, @"\s", String.Empty);
+                        CreateRoom(this, ClientRoom);
                         return true;
                 }
             }
